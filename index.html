@@ -4,29 +4,32 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Simple QR Generator</title>
+    <meta name="robots" content="noindex,nofollow">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
         body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; padding: 20px; background-color: #f0f0f0; margin: 0; }
         .container { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); width: 540px; margin-top: 20px; }
         
-        /* 上部：入力エリア */
-        .input-group { margin-bottom: 20px; display: flex; gap: 10px; }
-        input[type="text"] { flex: 1; padding: 12px; border: 1px solid #ccc; border-radius: 4px; font-size: 16px; outline: none; }
+        /* 上部：入力エリアと生成・クリアボタンを1行に */
+        .input-group { margin-bottom: 20px; display: flex; gap: 8px; }
+        input[type="text"] { flex: 1; padding: 12px; border: 1px solid #ccc; border-radius: 4px; font-size: 16px; outline: none; min-width: 0; }
         input[type="text"]:focus { border-color: #007bff; }
-        button#generate-btn { padding: 10px 24px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 16px; }
-        button#generate-btn:hover { background-color: #0056b3; }
         
-        /* 中央：表示エリア (500px固定) */
-        #qrcode-container { width: 500px; height: 500px; border: 1px solid #eee; margin: 0 auto 20px; display: flex; align-items: center; justify-content: center; background-color: #fff; position: relative; }
-        #qrcode { display: none; } /* ライブラリが生成する生の要素は隠す */
+        .main-btn { padding: 10px 16px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 15px; color: white; white-space: nowrap; }
+        #generate-btn { background-color: #007bff; }
+        #clear-btn { background-color: #6c757d; }
+        .main-btn:hover { opacity: 0.9; }
+        
+        /* 中央：500px固定 */
+        #qrcode-container { width: 500px; height: 500px; border: 1px solid #eee; margin: 0 auto 20px; display: flex; align-items: center; justify-content: center; background-color: #fff; }
+        #qrcode { display: none; }
         img#final-image { width: 500px; height: 500px; display: block; object-fit: contain; }
 
-        /* 下部：ボタンエリア */
+        /* 下部：保存と共有ボタン */
         .button-group { display: flex; justify-content: space-between; gap: 10px; }
         .action-btn { flex: 1; padding: 14px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; font-weight: bold; color: white; text-align: center; }
         .btn-save { background-color: #28a745; }
         .btn-share { background-color: #17a2b8; }
-        .btn-clear { background-color: #6c757d; }
         .action-btn:hover { opacity: 0.9; }
     </style>
 </head>
@@ -34,19 +37,19 @@
 
 <div class="container">
     <div class="input-group">
-        <input type="text" id="url-input" placeholder="URLをここに貼り付け" spellcheck="false">
-        <button id="generate-btn">QR作成</button>
+        <input type="text" id="url-input" placeholder="URLを貼り付け" spellcheck="false">
+        <button id="generate-btn" class="main-btn">QR作成</button>
+        <button id="clear-btn" class="main-btn">クリア</button>
     </div>
 
     <div id="qrcode-container">
         <div id="qrcode"></div>
-        <img id="final-image" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" alt="ここにQRコードが表示されます">
+        <img id="final-image" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" alt="QR表示エリア">
     </div>
 
     <div class="button-group">
         <button class="action-btn btn-save" id="download-btn">画像を保存</button>
         <button class="action-btn btn-share" id="share-btn">共有</button>
-        <button class="action-btn btn-clear" id="clear-btn">URLクリア</button>
     </div>
 </div>
 
@@ -59,18 +62,11 @@
     const shareBtn = document.getElementById('share-btn');
     const clearBtn = document.getElementById('clear-btn');
 
-    // QRコード生成とJPG変換のメインロジック
     generateBtn.addEventListener('click', () => {
         const url = urlInput.value.trim();
-        if (!url) {
-            alert("URLを入力してください");
-            return;
-        }
+        if (!url) return alert("URLを入力してください");
 
-        // 表示エリアを一旦クリア
         qrcodeDiv.innerHTML = "";
-        
-        // 500px固定 / 誤り訂正M / 余白自動(固定)
         const qrcode = new QRCode(qrcodeDiv, {
             text: url,
             width: 500,
@@ -80,23 +76,18 @@
             correctLevel : QRCode.CorrectLevel.M
         });
 
-        // 描画が完了したタイミングを確実に捉えるための監視
         const observer = new MutationObserver(() => {
             const canvas = qrcodeDiv.querySelector('canvas');
             if (canvas) {
-                // キャンバス完成後、50ミリ秒だけ描画安定を待ってJPGに変換
                 setTimeout(() => {
-                    const jpgData = canvas.toDataURL("image/jpeg", 0.9);
-                    finalImage.src = jpgData;
-                    observer.disconnect(); // 変換できたら監視終了
+                    finalImage.src = canvas.toDataURL("image/jpeg", 0.9);
+                    observer.disconnect();
                 }, 50);
             }
         });
-
         observer.observe(qrcodeDiv, { childList: true });
     });
 
-    // JPG画像のダウンロード処理
     downloadBtn.addEventListener('click', () => {
         if (finalImage.src.startsWith('data:image/gif')) return;
         const link = document.createElement('a');
@@ -105,25 +96,20 @@
         link.click();
     });
 
-    // 共有処理 (Web Share API)
     shareBtn.addEventListener('click', async () => {
         if (finalImage.src.startsWith('data:image/gif')) return;
         try {
             const response = await fetch(finalImage.src);
             const blob = await response.blob();
             const file = new File([blob], 'qrcode.jpg', { type: 'image/jpeg' });
-            
             if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                await navigator.share({ files: [file], title: 'QRコード共有' });
+                await navigator.share({ files: [file], title: 'QRコード' });
             } else {
-                alert("お使いのブラウザは共有に対応していません。画像を長押しするか「保存」ボタンを使ってください。");
+                alert("共有未対応ブラウザです。画像を長押しして保存してください。");
             }
-        } catch (err) {
-            console.error("共有エラー:", err);
-        }
+        } catch (err) { console.error(err); }
     });
 
-    // 入力と表示のリセット
     clearBtn.addEventListener('click', () => {
         urlInput.value = "";
         finalImage.src = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
